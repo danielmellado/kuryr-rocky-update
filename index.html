@@ -212,6 +212,93 @@ external_svc_subnet=<id of external subnet>
 
 ---
 
+# Kuryr-Kubernetes update
+
+## kuryr-daemon/CNI healthchecks a.k.a readiness and liveness probes
+
+We support Kubernetes-compatible container liveness and readiness checks.
+Elements of the check:
+
+* presence of NET_ADMIN capabilities in container.
+* access to network namespaces of the host.
+* connectivity with Kubernetes API.
+* quantity of CNI add failures.
+* health of CNI components and amount of memory being consumed.
+
+--
+
+.left-column[
+```yaml
+readinessProbe:
+  httpGet:
+	path: /ready
+	port: 8090
+	scheme: HTTP
+  initialDelaySeconds: 60
+  timeoutSeconds: 10
+```
+]
+.right-column[
+```yaml
+livenessProbe:
+  httpGet:
+	path: /alive
+	port: 8090
+  initialDelaySeconds: 60
+```
+]
+
+---
+
+# Kuryr-Kubernetes update
+
+## OpenShift Routes support
+
+OpenShift Routes are similar to Kubernetes Ingress resources.
+
+.sixty[.center[![Ingress](assets/ingress.svg)]]
+
+---
+
+# Kuryr-Kubernetes update
+
+## OpenShift Routes support
+
+We implement them using Octavia L7 loadbalancer.
+
+```ini
+[ingress]
+l7_router_uuid = 99f580e6-d894-442a-bc5f-4d14b41e10d2
+[kubernetes]
+enabled_handlers=vif,lb,lbaasspec,ingresslb,ocproute
+```
+
+.left-column[
+```yaml
+apiVersion: v1
+kind: Route
+metadata:
+ name: testroute
+spec:
+ host: www.firstroute.com
+ to:
+   kind: Service
+   name: kuryr-demo
+```
+]
+
+.right-column[
+
+```bash
+mdulko:~/ $ curl \
+  --header 'Host: www.firstroute.com' \
+  172.24.4.3
+kuryr-demo-1-gzgj2: HELLO, I AM ALIVE!!!
+```
+
+]
+---
+
 # Kuryr-Kubernetes
 
 ## How to use, how to contribute
