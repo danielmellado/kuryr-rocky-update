@@ -252,6 +252,76 @@ livenessProbe:
 
 # Kuryr-Kubernetes update
 
+## Pluggable kuryr-controller handlers
+
+.sixty[.center[![Controller pipeline](assets/controller_pipeline.png)]]
+
+---
+
+Kuryr-Kubernetes update
+
+## Pluggable kuryr-controller handlers
+
+Handler example:
+
+```python
+class VIFHandler(k8s_base.ResourceEventHandler):
+    OBJECT_KIND = 'Pod'
+    OBJECT_WATCH_PATH = "api/v1/pods"
+```
+
+--
+
+.left-column[
+Default:
+
+```ini
+[kubernetes]
+enabled_handlers=vif,lb,lbaasspec
+```
+
+E.g. only Pods, Services handled by kube-proxy:
+```ini
+[kubernetes]
+enabled_handlers=vif
+```
+]
+
+--
+
+.right-column[
+Handler-to-k8s-resource conversion table:
+
+<table border="1">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Handler</th>
+<th class="head">Kubernetes resource</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>vif</td>
+<td>Pod</td>
+</tr>
+<tr class="row-odd"><td>lb</td>
+<td>Endpoint</td>
+</tr>
+<tr class="row-even"><td>lbaasspec</td>
+<td>Service</td>
+</tr>
+<tr class="row-odd"><td>ocproute</td>
+<td>Route</td>
+</tr>
+<tr class="row-odd"><td>namespace</td>
+<td>Namespace</td>
+</tr>
+</tbody>
+</table>
+]
+
+---
+
+# Kuryr-Kubernetes update
+
 ## OpenShift Routes support
 
 OpenShift Routes are similar to Kubernetes Ingress resources.
@@ -297,6 +367,7 @@ kuryr-demo-1-gzgj2: HELLO, I AM ALIVE!!!
 ```
 
 ]
+
 ---
 
 # Kuryr-Kubernetes
