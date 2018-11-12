@@ -379,6 +379,81 @@ Can you handle it?
 
 ---
 
+# Kuryr-Kubernetes update
+
+## Support for multiple VIFs per Pod
+
+--
+
+a.k.a *Kubernetes Network Custom Resource Definition De-facto Standard v1
+Support*
+
+--
+
+```ini
+[kubernetes]
+multi_vif_drivers=npwg_multiple_interfaces
+```
+
+
+---
+
+# Kuryr-Kubernetes update
+
+## Support for multiple VIFs per Pod
+
+### Custom Resource Definition:
+
+```yaml
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: network-attachment-definitions.k8s.cni.cncf.io
+spec:
+  group: k8s.cni.cncf.io
+  version: v1
+  scope: Namespaced
+  names:
+    plural: network-attachment-definitions
+    singular: network-attachment-definition
+    kind: NetworkAttachmentDefinition
+    shortNames:
+    - net-attach-def
+  validation:
+  <snipped!>
+```
+
+---
+
+# Kuryr-Kubernetes update
+
+## Support for multiple VIFs per Pod
+
+### Network Attachment Definition:
+```yaml
+apiVersion: k8s.cni.cncf.io/v1
+kind: NetworkAttachmentDefinition
+metadata:
+  name: foobar
+  annotations:
+    openstack.org/kuryr-config: '{"subnetId": "<some-uuid-of-a-subnet>"}'
+```
+
+--
+
+### Pod definition:
+```yaml
+kind: Pod
+metadata:
+  name: my-pod
+  annotations:
+    k8s.v1.cni.cncf.io/networks: foobar
+spec:
+  <snipped!>
+```
+
+---
+
 # Kuryr-Kubernetes
 
 ## How to use, how to contribute
