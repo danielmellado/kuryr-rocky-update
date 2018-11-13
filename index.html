@@ -373,10 +373,12 @@ kuryr-demo-1-gzgj2: HELLO, I AM ALIVE!!!
 
 ## Project isolation
 
-OpenShift supports basic multitenancy through projects.
+OpenShift supports basic multitenancy through projects
 
-TODO: dulek: I'm not 100% sure I'm getting everything right on this one.
-Can you handle it?
+* We create a new subnet and router per project within a namespace so we ensure proper project isolation.
+
+--
+* Whenever a pod is created, proper security groups are assigned to it using the namespace security group driver
 
 ---
 
