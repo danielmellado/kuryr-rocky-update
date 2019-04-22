@@ -1,0 +1,9 @@
+@startuml
+skinparam monochrome true
+hide footbox
+Kubernetes -> Kuryr: Network Policy Event
+Kuryr -> Kuryr: Handle NP Event
+Kuryr -> OpenStack: Create SG and SG Rules
+OpenStack -> Kuryr: Return Objects IDs
+Kuryr -> Kubernetes: Create KuryrNetPolicy CRD
+@enduml

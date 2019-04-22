@@ -47,9 +47,8 @@ template: title_layout
 ## Project Update
 
 Daniel Mellado - Senior Software Engineer - Red Hat<br />
-Michał Dulko - Software Engineer - Red Hat<br />
 <br>
-OpenStack Summit Berlin, 13.11.2018<br />
+Open Infrastructure Summit Denver, 30.04.2019<br />
 
 ---
 
@@ -58,10 +57,10 @@ template: agenda_layout
 # Agenda
 
 1. What's Kuryr?
-2. Kuryr-Kubernetes update (Rocky)
-3. Kuryr-Kubernetes future (Stein, Train, …)
+2. Kuryr-Kubernetes update (Stein)
+3. Kuryr-Kubernetes future (Train, U)
 
-Slides available at: **https://dulek.github.io/kuryr-rocky-update**
+Slides available at: **https://danielmellado.github.io/kuryr-stein-update**
 
 ---
 
@@ -113,40 +112,23 @@ What's Kuryr?
 
 template: section_layout
 
-Kuryr-Kubernetes update (Rocky)
+Kuryr-Kubernetes update (Stein)
 
 ---
 
-# Kuryr-Kubernetes update (Rocky)
+# Kuryr-Kubernetes update (Stein)
 
 ## Deprecations
 
 * Running without kuryr-daemon is now deprecated.
-  * Most likely to be removed in Stein.
+  * Removed in Stein.
 --
 
 * LBaaS v2 support is now deprecated
-  * Less likely to be removed in Stein, but still possible.
-
---
-
-## Upgrade
-
-* For *LoadBalancer* service type: `external_svc_net` config option was added
-  in `[neutron_defaults]` section.  `external_svc_subnet` is no longer
-  required to be set.
-
-```ini
-[neutron_defaults]
-external_svc_net=<id of external network>
-# 'external_svc_subnet' field is optional, set this field in case
-# multiple subnets are attached to 'external_svc_net'
-external_svc_subnet=<id of external subnet>
-```
 
 ---
 
-# Kuryr-Kubernetes update (Rocky)
+# Kuryr-Kubernetes update (Stein)
 
 ## Kubernetes/OpenShift releases compatiblity
 
@@ -158,13 +140,13 @@ external_svc_subnet=<id of external subnet>
 </tr>
 </thead>
 <tbody valign="top">
-<tr class="row-even"><td>master (Stein)</td>
-<td>v1.9.x, 1.10.x, 1.11.x, 1.12.x</td>
-<td>3.9, 3.10</td>
-</tr>
-<tr class="row-odd"><td><strong>0.5.x (Rocky)</strong></td>
-<td><strong>v1.9.x, 1.10.x</strong></td>
+<tr class="row-even"><td><strong>1.0.0 (Stein)</strong></td>
+<td><strong>v1.9.x, 1.10.x, 1.11.x, 1.12.x, 1.13.x</strong></td>
 <td><strong>3.9, 3.10</strong></td>
+</tr>
+<tr class="row-odd"><td>0.5.x (Rocky)</td>
+<td>v1.9.x, 1.10.x</td>
+<td>3.9, 3.10</td>
 </tr>
 <tr class="row-even"><td>0.4.x (Queens)</td>
 <td>v1.8.x</td>
@@ -187,191 +169,79 @@ external_svc_subnet=<id of external subnet>
 
 ---
 
-# Kuryr-Kubernetes update (Rocky)
+# Kuryr-Kubernetes update (Stein)
 
-## Active/Passive HA for kuryr-controller
+## Network Policy Support
 
-* Works only when Kuryr-Kubernetes runs on Kubernetes/OpenShift in Pods.
-* Uses Kubernetes native way of doing leader election.
-  * Annotation on an Endpoint.
-  * Requires running side car election containers.
+* Specification of how groups of pods are allowed to communicate with each
+  other and other network endpoints..
+* Extends k8s implementation by leveraging neutron security groups.
+  * Security group rules are parsed from k8s network policies.
+  * Uses a CRD for this: 'KuryrNetPolicy'.
+
+---
+
+# Kuryr-Kubernetes update (Stein)
+
+## Network Policy Support
+
+### Network Policy
 
 ```yaml
-- image: gcr.io/google_containers/leader-elector:0.5
-  name: leader-elector
-  args:
-  - "--election=kuryr-controller"
-  - "--http=0.0.0.0:16401"
-  - "--election-namespace=kube-system"
-  - "--ttl=5s"
-  ports:
-  - containerPort: 16401
-    protocol: TCP
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: test-network-policy
+  namespace: default
+spec:
+  <snipped!>
+  ingress:
+  - from:
+    - ipBlock:
+        cidr: 172.17.0.0/16
+        except:
+        - 172.17.1.0/24
+    ports:
+    - protocol: TCP
+      port: 6379
+    <snipped!>
 ```
 
 * More info in Kuryr-Kubernetes documentation.
 
 ---
 
-# Kuryr-Kubernetes update (Rocky)
+# Kuryr-Kubernetes update (Stein)
 
-## kuryr-daemon/CNI healthchecks a.k.a readiness and liveness probes
+## Network Policy Support
 
-We support Kubernetes-compatible container liveness and readiness checks.
-Elements of the check:
+New handler and driver for Network Policies
 
-* presence of NET_ADMIN capabilities in container
-* access to network namespaces of the host
-* connectivity with Kubernetes API
-* number of CNI ADD failures
-* health of CNI components and amount of memory being consumed
+* We now handle network policies events
+* KuryrNetPolicy CRD created per k8s np event
+
+---
+
+# Kuryr-Kubernetes update (Stein)
+
+## Network Policy Support
+
+
+.full[.center[![Network Policy](assets/np.svg)]]
 
 --
 
-.left-column[
-```yaml
-readinessProbe:
-  httpGet:
-	path: /ready
-	port: 8090
-	scheme: HTTP
-  initialDelaySeconds: 60
-  timeoutSeconds: 10
-```
-]
-.right-column[
-```yaml
-livenessProbe:
-  httpGet:
-	path: /alive
-	port: 8090
-  initialDelaySeconds: 60
-```
-]
-
----
-
-# Kuryr-Kubernetes update (Rocky)
-
-## Pluggable kuryr-controller handlers
-
-.sixty[.center[![Controller pipeline](assets/controller_pipeline.png)]]
-
----
-
-# Kuryr-Kubernetes update (Rocky)
-
-## Pluggable kuryr-controller handlers
-
-Handler example:
-
-```python
-class VIFHandler(k8s_base.ResourceEventHandler):
-    OBJECT_KIND = 'Pod'
-    OBJECT_WATCH_PATH = "api/v1/pods"
-```
-
+* Kuryr handler watches over CRUD operations for Network Policies
 --
 
-.left-column[
-Default:
-
-```ini
-[kubernetes]
-enabled_handlers=vif,lb,lbaasspec
-```
-
-E.g. only Pods, Services handled by kube-proxy:
-```ini
-[kubernetes]
-enabled_handlers=vif
-```
-]
-
---
-
-.right-column[
-Handler-to-k8s-resource conversion table:
-
-<table border="1">
-<thead valign="bottom">
-<tr class="row-odd"><th class="head">Handler</th>
-<th class="head">Kubernetes resource</th>
-</tr>
-</thead>
-<tbody valign="top">
-<tr class="row-even"><td>vif</td>
-<td>Pod</td>
-</tr>
-<tr class="row-odd"><td>lb</td>
-<td>Endpoint</td>
-</tr>
-<tr class="row-even"><td>lbaasspec</td>
-<td>Service</td>
-</tr>
-<tr class="row-odd"><td>ocproute</td>
-<td>Route</td>
-</tr>
-<tr class="row-odd"><td>namespace</td>
-<td>Namespace</td>
-</tr>
-</tbody>
-</table>
-]
+* Neutron object IDs are stored in KuryrNetPolicy spec
+  * This is a way to get faster speeds by avoiding talking to Neutron
 
 ---
 
-# Kuryr-Kubernetes update (Rocky)
+# Kuryr-Kubernetes update (Stein)
 
-## OpenShift Routes support
-
-OpenShift Routes are similar to Kubernetes Ingress resources.
-
-.sixty[.center[![Ingress](assets/ingress.svg)]]
-
----
-
-# Kuryr-Kubernetes update (Rocky)
-
-## OpenShift Routes support
-
-We implement them using Octavia L7 loadbalancer.
-
-```ini
-[ingress]
-l7_router_uuid = 99f580e6-d894-442a-bc5f-4d14b41e10d2
-[kubernetes]
-enabled_handlers=vif,lb,lbaasspec,ingresslb,ocproute
-```
-
-.left-column[
-```yaml
-apiVersion: v1
-kind: Route
-metadata:
- name: testroute
-spec:
- host: www.firstroute.com
- to:
-   kind: Service
-   name: kuryr-demo
-```
-]
-
-.right-column[
-```bash
-mdulko:~/ $ curl \
-  --header 'Host: www.firstroute.com' \
-  172.24.4.3
-kuryr-demo-1-gzgj2: HELLO, I AM ALIVE!!!
-```
-]
-
----
-
-# Kuryr-Kubernetes update (Rocky)
-
-## Project isolation
+## Project isolation (now with Network Policies)
 
 OpenShift supports basic multitenancy through projects
 
@@ -382,84 +252,57 @@ OpenShift supports basic multitenancy through projects
 
 ---
 
-# Kuryr-Kubernetes update (Rocky)
+# Kuryr-Kubernetes update (Stein)
 
-## Support for multiple VIFs per Pod
+## CRI-O Support
 
---
-
-a.k.a *Kubernetes Network Custom Resource Definition De-facto Standard v1
-Support*
-
---
-
-```ini
-[kubernetes]
-multi_vif_drivers=npwg_multiple_interfaces
-```
-
+.center[.seventy[![Insert graphic here](assets/criologo.svg)]]
 
 ---
 
-# Kuryr-Kubernetes update (Rocky)
+# Kuryr-Kubernetes update (Stein)
 
-## Support for multiple VIFs per Pod
+## What's CRI-O?
 
-### Custom Resource Definition:
+* More  ways to run containers than just the docker tool.
+  * runc, rkt, frakti, cri-containerd and more.
+  * Follow the OCI standard defining how the runtimes start and run containers
+  * Lack a standard way of interfacing with an orchestrator
+--
 
-```yaml
-apiVersion: apiextensions.k8s.io/v1beta1
-kind: CustomResourceDefinition
-metadata:
-  name: network-attachment-definitions.k8s.cni.cncf.io
-spec:
-  group: k8s.cni.cncf.io
-  version: v1
-  scope: Namespaced
-  names:
-    plural: network-attachment-definitions
-    singular: network-attachment-definition
-    kind: NetworkAttachmentDefinition
-    shortNames:
-    - net-attach-def
-  validation:
-  <snipped!>
-```
+* Standard API to be able to talk to and manage a container runtime.
+  * This API is called the **Container Runtime Interface (CRI)**
+--
+
+* Since 2018 CRI-O is an official part of the Kubernetes family of tools.
 
 ---
 
-# Kuryr-Kubernetes update (Rocky)
+# CRI-O
 
-## Support for multiple VIFs per Pod
+## Why CRI-O?
 
-### Network Attachment Definition:
-```yaml
-apiVersion: k8s.cni.cncf.io/v1
-kind: NetworkAttachmentDefinition
-metadata:
-  name: foobar
-  annotations:
-    openstack.org/kuryr-config: '{"subnetId": "<some-uuid-of-a-subnet>"}'
-```
-
+* **Open Source Project**
+  * Contributors from several companies, such as Red Hat, SUSE, Intel, Google, IBM...
 --
 
-### Pod definition:
-```yaml
-kind: Pod
-metadata:
-  name: my-pod
-  annotations:
-    k8s.v1.cni.cncf.io/networks: foobar
-spec:
-  <snipped!>
-```
+* **Secure**
+  * In Docker, every container is a ‘child’ of the large Docker Daemon
+--
+
+  * CRI-O containers are children of the process that spawned it
+--
+
+* **Lightweight**
+--
+
+* **Official Kubernetes Project**
 
 ---
 
 template: section_layout
 
-Kuryr-Kubernetes future (Stein, Train, …)
+Kuryr-Kubernetes future (Train, …)
 
 ---
 
@@ -467,22 +310,20 @@ Kuryr-Kubernetes future (Stein, Train, …)
 
 ## What's going on on origin/master
 
-Done (mostly):
+Done (mostly) :
 
 * Python 3.6 support
 * UDP services support
 * Upgrades checks
 * SR-IOV support
+* Network Policy support
 
 --
 
 In progress:
 
-* Network Policy support
 * DPDK support
-* Improvements in namespace isolation
-* Further decentralization of kuryr-controller
-* OVN support (both as Neutron and Octavia plugin)
+* Multus support
 
 ---
 
@@ -516,13 +357,8 @@ template: thank_you
 
 **Slides can be found at:**
 
-- https://dulek.github.io/kuryr-rocky-update
-- https://github.com/dulek/kuryr-rocky-update
-
-**Michał Dulko**
-
-![email](assets/email.png)   [mdulko@redhat.com](mailto:mdulko@redhat.com)
-![irc](assets/irc.png)   [dulek (freenode)](irc://chat.freenode.net/dulek,isnick)
+- https://danielmellado.github.io/kuryr-stein-update
+- https://github.com/danielmellado/kuryr-stein-update
 
 **Daniel Mellado**
 
@@ -535,7 +371,7 @@ template: thank_you
     <script type="text/javascript">
       var slideshow = remark.create({
         ratio: '16:9',
-        slideNumberFormat: '%current%   <span class="designator">Kuryr - Project Update · November 2018 · OpenStack Summit Berlin</span>',
+        slideNumberFormat: '%current%   <span class="designator">Kuryr - Project Update · April 2019 · Open Infrastructure Summit Denver</span>',
         countIncrementalSlides: false
       });
     </script>
