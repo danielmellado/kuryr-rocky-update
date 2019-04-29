@@ -300,6 +300,53 @@ OpenShift supports basic multitenancy through projects
 
 ---
 
+# Kuryr-Kubernetes update (Stein)
+## Basic scenario for SR-IOV
+
+```yaml
+apiVersion: extensions/v1beta1
+kind: Deployment
+spec:
+  template:
+    metadata:
+      <snipped!>
+      annotations:
+        k8s.v1.cni.cncf.io/networks: net-sriov
+    spec:
+      containers:
+        <snipped!>
+        resources:
+          requests:
+            intel.com/sriov: '1'
+          limits:
+            intel.com/sriov: '1'
+```
+---
+
+# Kuryr-Kubernetes update (Stein)
+## SR-IOV features on the review
+
+* Arbitrary resource names
+```yaml
+	resources:
+	  requests:
+	    arbitrary_prefix1/any_sriov_name1: '1'
+	    arbitrary_prefix2/any_sriov_name2: '1'
+	  limits:
+	    arbitrary_prefix1/any_sriov_name1: '1'
+	    arbitrary_prefix1/any_sriov_name2: '1'
+```
+
+* Bind user space driver for DPDK
+
+```ini
+	[sriov]
+	resource_driver_mappings = user_driver_res_name:vfio-pci
+	resource_driver_mappings = kernel_driver_res_name:igbvf
+
+```
+---
+
 template: section_layout
 
 Kuryr-Kubernetes future (Train, …)
